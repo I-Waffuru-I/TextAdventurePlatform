@@ -1,0 +1,10 @@
+0;n1;input text 1
+1;n2;input text 2
+2;n2;input text 3
+3;n1;input text 4
+4;n2;input text 5\r\nSplit into lines?
+5;n1;Thing for later ig lol
+6;ch(Return to earlier?,Return,Continue,1,6)
+7;n2;input text 7
+8;n1;input text 8
+9;n2;input text 9

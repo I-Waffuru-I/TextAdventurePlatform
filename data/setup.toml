@@ -1,0 +1,15 @@
+main_file_path = "data/test.txt"
+
+[[characters]]
+full_name = "Name 1"
+short_name = "n1"
+c_r = 37
+c_g = 150 
+c_b = 190
+
+[[characters]]
+full_name = "Name 2"
+short_name = "n2"
+c_r = 190
+c_g = 10 
+c_b = 166 

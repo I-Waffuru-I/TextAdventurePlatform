@@ -1,0 +1,56 @@
+0;w;Yo! I'm Waffuru, an ICT student that likes programming.
+1;w;Welcome to this project of mine! Feel free to have a look around :)
+2;w;This sample file is a demonstration of how to use this little engine. It's very basic, but it gets the job done and - most importantly - I made it from scratch.
+3;w;Forgive the rough edges!
+4;w;Enough small talk, I think it's time for a little demo of what's possible right now. 
+5;u;I agree.
+6;w;Hey, you just talked! Cool right?
+7;u;Definitely. Can you do anything else?
+8;n;Well, the narrator can talk. There's no character speaking right now, hence the empty line to show it's separate without printing 'Narrator' or anything ugly like that.
+9;w;Woah, welcome back!
+10;w;Don't worry, this will make sense soon.
+11;ch3(Where to go now?,Why make this?,Own story?,Why... why am I here?,12,22,44)
+
+12;w;I'm a big fan of creating stuff, regardless what it is. I've played music before, spend time trying to improve my drawing skills and, more importantly, write.
+13;w;A lot.
+14;w;Naturally, I also like programming. That's only fair, or you wouldn't be reading this document about a game I made.
+15;w;Those last two are the important ones - coding and writing. See, writing a story is cool, but a story where you can make decisions is always cooler.
+16;w;It's interactive, right?
+17;w;There exist frameworks for this, naturally. Apps, entire communities, game engines. The text game 'Magium' is a great example that goes miles ahead of my scope. It's part of what sparked this idea for me, years and years ago.
+18;w;While yes, I could write a story in one of those environments, I had a genius idea somewhere during the vacation. This is the result.
+19;w;Add onto that the fact I was going through the Rust Book at the time - a great learning resource, if I may - and never really used the language properly, making this project using it as language would be brilliant!
+20;w;Two birds with a stone, if you will.
+21;mv(9)
+
+22;w;Every story is saved in two separate files. I'll cover these both rapidly.
+23;n;First comes the configuration file, in this case being sample.toml
+24;n;Toml is a file format for easy data remembering. Could've been a .txt as well, yes, but I decided to use this to make reading it easier.
+25;n;Currently, there's not much to a game save file: the text file path and the characters.
+26;n;You can copy & paste the sample config file before replacing the values and adding what characters you need. The format remains identical for every story, obviously.
+27;n;Character short names aren't obligated to be 1 char long. I simply prefer doing it this way because that's a little less pointless typing :P
+28;n;As for their colours, standard 8b RGB split into three fields, you can manage that just fine.
+29;w;As for the actual story, that's a slightly more complex file.
+30;n;sample.txt is what you're currently reading. Story files contain every line of dialogue, text or option the story needs.
+31;n;There's two kinds of lines in a story file: Dialogue and Commands.
+32;n;As a rule of thumb, when a character speaks, it's a Dialogue line and when something happens, it's a Command line.
+33;n;The difference lies in how they're formated. Dialogues have an ID, a shortened character name and a text value, while Commands only have an ID and the command information.
+34;n;Dialogue has two separators while Commands have only one.
+35;w;Commands are handled internally and, to be frank, are very limited as I write this. There's only three, though more will unavoidably be added.
+36;w;These are 'ch', 'ch3' and 'mv'. 
+37;n;'ch' : Choose allows to choose between two options before redirecting the reader to another line in the file, depending on which is picked.
+38;n;'ch3': Is basically the same as ch, except you can provide up to three options.
+39;n;'mv' : Allows to jump to another line in the file without user interactions. Suppose you have two options leading to different dialogue, but eventually join the same path again. Add a 'mv' to the end of both dialogue options that refer to the same continuing line and the story merges back together.
+40;w;As I said, more commands might be added later. I'm considering expanding the engine so you can split a story into multiple files and use a 'cf' ChangeFile command (or something like that) to change which is being read.
+41;w;That way if a huge decision early on drastically changes the story in one of two ways, the game doesn't have to load the path you aren't walking as well.
+42;w;Something else I'm considering is merging the choose commands into one with a scaleable amount of parameters
+43;mv(9)
+
+44;w;Well, you shot back in time because this engine isn't really supposed to be very go-back-and-forthy-y. It's not made to be a wiki.
+45;w;I had to add one third option to 'continue' once you've read both the first options.
+46;w;One of the biggest concepts I have in mind to progress with - clearly one I should already have planned out - is a way to remember stuff over the story. 
+47;w;You arrive at the boss room and there may (or not) be some enemy that appears, since you may have fought them already? Dump a boolean somewhere in the save file and the game will be able to know.
+48;w;. . .
+49;w;At least that's the plan. I have ideas, but not enough free time to implement it.
+50;w;Even while writing this, I'm going over my time for uni tasks haha
+51;w;Thanks for checking this out! Have a look around my Github if you wish, some constructive criticism on anything I make is always welcome :)
+52;w;See ya!

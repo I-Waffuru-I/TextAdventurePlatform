@@ -1,0 +1,11 @@
+[package]
+name = "cyoa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ansi_term = "0.12.1"
+console = "0.15.8"
+regex = "1.11.0"
+serde = {version = "1.0.214", features = ["derive"] }
+toml = "0.8.19"

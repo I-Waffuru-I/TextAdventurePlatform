@@ -1,0 +1,23 @@
+main_file_path = "data/sample.txt"
+
+[[characters]]
+full_name = ""
+short_name = "n"
+c_r = 255
+c_g = 255
+c_b = 255
+
+[[characters]]
+full_name = "Waffuru"
+short_name = "w"
+c_r = 37
+c_g = 150 
+c_b = 190
+
+
+[[characters]]
+full_name = "You"
+short_name = "u"
+c_r = 206
+c_g = 115
+c_b = 45
