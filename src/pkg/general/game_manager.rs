@@ -3,7 +3,7 @@ use crate::pkg::{
     output::display_printer::DialoguePrinter as dp,
 };
 use std::{thread, time::Duration};
-use super::{current_game_state::CurrentGameState, lines::Line, store_file};
+use super::{current_game_state::{CurrentGameState, CurrentMenuState}, lines::Line, store_file};
 use ansi_term::Style;
 use console::Term;
 
@@ -12,7 +12,7 @@ pub struct GameManager {
     current_state : CurrentGameState,
     dialogue_printer : dp,
     term : Term,
-    selected_game_title : String, 
+    selected_game_title : String,
 }
 
 
@@ -20,7 +20,7 @@ impl GameManager {
     pub fn new() -> GameManager{
         
         let file_reader = InputFileReader::new();
-        let current_state : CurrentGameState = CurrentGameState::MenuOpen;
+        let current_state : CurrentGameState = CurrentGameState::MenuOpen(CurrentMenuState::App);
         let dialogue_printer = dp::new();
         let term =  Term::buffered_stdout();
         let selected_game_title = String::from("");
@@ -33,10 +33,47 @@ impl GameManager {
             selected_game_title,
         }
     }
+    // Main event loop
+    pub fn run(&mut self) {
+        'event_loop : loop {
+            match self.current_state {
+                CurrentGameState::GameIsStopping => {
+                    self.stop_program();
+                    break 'event_loop;
+                }
+                CurrentGameState::GameStarting => {
+                    self.start_game();
+                }
+                CurrentGameState::GameRunning => {
+                    self.continue_playing_game();
+                }
+                CurrentGameState::AwaitingKeyPress => {
+                    self.await_key_press();    
+                }
+                CurrentGameState::MenuOpen(s) => {
+                    self.open_menu(s);
+                }
+                CurrentGameState::StoryIsDone => {
+                    self.await_key_press();
+                    self.open_menu(CurrentMenuState::App);
+                }
+            }
+        }
+    }
 
-    pub fn open_menu(&mut self){
+    fn open_menu(&mut self, current_menu_state : CurrentMenuState){
 
+        self.dialogue_printer.implement_size(self.term.size());
         dp::clear_screen();
+
+        match current_menu_state {
+            CurrentMenuState::App => {},
+            CurrentMenuState::Load => {},
+            CurrentMenuState::New => {}
+        }
+
+
+
         let mut g_count = 0;
         let mut g_current_selected = 0;
 
@@ -93,7 +130,7 @@ impl GameManager {
     }
 
 
-    pub fn start_game(&mut self) {
+    fn start_game(&mut self) {
         dp::clear_screen();
         match store_file::start_game(&self.selected_game_title) {
             Ok(game) => {
@@ -104,7 +141,8 @@ impl GameManager {
                         dp::print_error(e);
                    },
                 }
-                self.dialogue_printer.implement(game.characters);
+                self.dialogue_printer.implement_size(self.term.size());
+                self.dialogue_printer.implement_chars(game.characters);
                 self.current_state = CurrentGameState::GameRunning;
             }
             Err(error) => {
@@ -114,13 +152,8 @@ impl GameManager {
         }
     }
 
-    pub fn get_current_game_state(&self) -> CurrentGameState {
-       self.current_state 
-    }
 
-    
-
-    pub fn continue_playing_game(&mut self){
+    fn continue_playing_game(&mut self){
 
         let line  = self.file_reader.read_next_line(); 
         match line {
@@ -135,13 +168,13 @@ impl GameManager {
 
     }
 
-    pub fn await_key_press(&mut self){
+    fn await_key_press(&mut self){
         'await_press : loop {
             if let Ok(char) = self.term.read_char(){
                 match char {
                     'x' => {
                         thread::sleep(Duration::from_millis(100));
-                        self.current_state = CurrentGameState::MenuOpen;
+                        self.current_state = CurrentGameState::MenuOpen(CurrentMenuState::App);
                         break 'await_press;
                     },
                     ' ' | '\n' => {
@@ -155,7 +188,7 @@ impl GameManager {
         }
     }
 
-    pub fn handle_line(&mut self, line : Line) {
+    fn handle_line(&mut self, line : Line) {
 
         match line {
             Line::Text(t) => {
@@ -187,9 +220,10 @@ impl GameManager {
 
     }
 
-    pub fn stop_program(&mut self) {
-       dp::print_info(format!("Stopping game now!")); 
-       dp::print_info(format!("Thanks for playing! <3")); 
+    fn stop_program(&mut self) {
+        dp::clear_screen();
+        dp::print_info(format!("Stopping game now!")); 
+        dp::print_info(format!("Thanks for playing! <3")); 
     }
 
 

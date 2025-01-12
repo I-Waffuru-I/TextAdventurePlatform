@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use super::characters::GameCharacterData;
 
 #[derive(Debug,Deserialize,Serialize)]
 pub struct MainGameFile {
@@ -7,14 +8,6 @@ pub struct MainGameFile {
     pub characters : Vec<GameCharacterData> 
 }
 
-#[derive(Debug,Deserialize,Serialize)]
-pub struct GameCharacterData {
-    pub full_name: String,
-    pub short_name: String,
-    pub c_r : u8,
-    pub c_g : u8,
-    pub c_b : u8,
-}
 
 pub fn present_game_titles() -> Result<Vec<String>,String>{
     let path = fs::read_dir("data/").unwrap();
@@ -23,12 +16,10 @@ pub fn present_game_titles() -> Result<Vec<String>,String>{
     for fil in path {
         match fil {
             Ok(f) => {
-
                 if f.path().extension().and_then(|s| s.to_str()) == Some("toml") {
                     v.insert(index, f.file_name().into_string().unwrap());
                     index += 1;
                 }
-
             },
             Err(e) => return Err(format!("Something went wrong getting the path: {e}")),
         }

@@ -1,0 +1,13 @@
+0;m;testing stuff
+1;m;command goes here:
+2;m;and <i>italics</i> go here
+3;m;I enjoy life when it works <b>boldly</b> and stuff like that?
+4;m;One more just to try stuff out.
+5;m;What if I add a line where <da> the command</da> doesn't exist? 
+6;n;Ait dude
+7;m;I exist!
+8;s;I don't!
+9;m;And colour time! This is red <c255000000>maybe?
+10;m;And blue <c000000255>perhaps?
+11;m;Now something else <c200080120>just for the hell</> of it!
+12;m;Really last time now, <i>how does <c255160010>this</> end up looking?

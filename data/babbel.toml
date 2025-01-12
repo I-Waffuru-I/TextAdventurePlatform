@@ -1,0 +1,43 @@
+main_file_path = "data/babbel.txt"
+
+[[characters]]
+full_name = "Mathijs"
+short_name = "ma"
+c_r = 37
+c_g = 150 
+c_b = 190
+
+[[characters]]
+full_name = "Niels"
+short_name = "ni"
+c_r = 190
+c_g = 10 
+c_b = 166
+
+[[characters]]
+full_name = "Warre"
+short_name = "wr"
+c_r = 190
+c_g = 120
+c_b = 120
+
+[[characters]]
+full_name = "Hamza"
+short_name = "hm"
+c_r = 50
+c_g = 250
+c_b = 250
+
+[[characters]]
+full_name = "Simon"
+short_name = "sm"
+c_r = 170
+c_g = 170
+c_b = 0
+
+[[characters]]
+full_name = "Lukas"
+short_name = "ll"
+c_r = 19
+c_g = 250
+c_b = 12

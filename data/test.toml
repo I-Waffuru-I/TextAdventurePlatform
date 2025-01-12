@@ -1,0 +1,9 @@
+
+main_file_path = "data/test.txt"
+
+[[characters]]
+full_name = "Mathijs"
+short_name = "m"
+c_r = 37
+c_g = 150 
+c_b = 190
