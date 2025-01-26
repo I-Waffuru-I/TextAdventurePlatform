@@ -1,7 +1,15 @@
 
 use ansi_term::{Style,Color};
-use crate::pkg::{general::characters::GameCharacterData, output::color_management};
-use super::{super::general::lines::TextLine, dialogue_parser::{self, DialogueParser}, image_management};
+use crate::pkg::{
+    general::{
+        characters::GameCharacterData,
+        lines::TextLine
+    },
+    output::{
+        dialogue_parser::DialogueParser,
+        image_management,
+        color_management
+}}; 
 
 
 
@@ -21,12 +29,14 @@ impl GameSize {
 }
 
 struct MenuSize {
-    panel_width : u16
+    panel_width : u16,
+    title_line : u16,
 }
 impl MenuSize {
     pub fn new()->MenuSize {
         MenuSize {
-            panel_width : 0
+            panel_width : 0,
+            title_line : 0
         }
     }
 }
@@ -64,14 +74,14 @@ impl DialoguePrinter {
     }
 
     pub fn implement_size(&mut self, size : (u16,u16)){
-        self.termsize = size;
-        if size.0 < 100 || size.1 < 20 {
+        self.termsize = size; // 0 = # of rows, 1 = # of cols 
+        if size.1 < 100 || size.0 < 20 { 
             // small screen, no images
             self.img_enabled = false;
-            self.menusize.panel_width = size.0;
+            self.menusize.panel_width = size.1;
         } else {
             self.img_enabled = true;
-            self.menusize.panel_width = (size.0 as f64 / 3f64) as u16;
+            self.menusize.panel_width = (size.1 as f64 / 3f64) as u16;
         }
     }
 
@@ -96,24 +106,94 @@ impl DialoguePrinter {
         self.prev_char = "".to_string();
     }
 
-    pub fn print_app_screen(&self) {
+    pub fn print_menu_img(&mut self) {
         if self.img_enabled {
             // make image layout
-            let img_w = self.termsize.0 as u32 - self.menusize.panel_width as u32;
-            let ascii_result = image_management::get_ascii_art(&self.image_link,img_w, self.termsize.1 as u32);
-            for i in 0..self.termsize.1 {
-                // gray + append img row
-
-                print!("ESC[48;2;{};{};{}m",120,120,120);
-                match i {
-                    3 => {}
-                    _ => {}
+            let ascii_result = image_management::get_ascii_art(
+                &self.image_link,self.termsize.1 as u32, self.termsize.0 as u32
+            );
+            match ascii_result {
+                Ok(img_s) => { 
+                    print!("\x1B[H{}",img_s);
+                }
+                Err(e) => {
+                    println!("{}", e);
+                    return 
                 }
             }
         }
     }
 
+    pub fn print_app_screen(&self, selected : u8) {
+        // make gray cover
+        print!("\x1B[H");
+        for i in 0..self.termsize.0{
 
+            let c = if i == (6 + selected as u16 * 2) 
+            { "\x1B[2D> \x1B[1m" } else { "\x1B[2m" }; // blinking else dim
+
+            match i {
+                3 => {
+                    print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, "App!","\x1B[1m"))
+                }
+                4 => {
+                    print!("{}", self::DialoguePrinter::horizontal_line(self.menusize.panel_width, self.menusize.panel_width/3))
+                }
+
+                6 => {
+                    print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, "Start New",c))
+                }
+
+                8 => {
+                    print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, "Load",c))
+                }
+
+                10 => {
+                    print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, "Credits",c))
+                }
+                
+                _ => {
+                    print!("{}",self::DialoguePrinter::gray_line(self.menusize.panel_width));
+                }
+            }
+
+            print!("\x1B[1B\r");
+            }
+        print!("\x1B[H\r\n");
+        self::DialoguePrinter::cursor_default_pos();
+    }
+
+    pub fn print_menu_screen(&self,title : &str, selected : u8, options : &Vec<String>) {
+        // make gray cover
+        print!("\x1B[H");
+        for i in 0..self.termsize.0{
+            match i {
+                3 => {
+                    print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, title,"\x1B[1m"))
+                }
+                4 => {
+                    print!("{}", self::DialoguePrinter::horizontal_line(self.menusize.panel_width, self.menusize.panel_width/3))
+                }
+
+                _ => {
+                    print!("{}",self::DialoguePrinter::gray_line(self.menusize.panel_width));
+                }
+            }
+            print!("\x1B[0m\x1B[1B\r");
+        }
+        for (i,n) in options.iter().enumerate() {
+            // if selected -> highlight
+            let c = if i as u8 == selected
+            { "\x1B[2D> \x1B[1m" } else { "\x1B[2m" }; // blinking else dim
+            let ln = 6 + i as u16 * 2;
+            print!("\x1B[{};0H",ln);
+            print!("{}",self::DialoguePrinter::menu_line(self.menusize.panel_width, n.as_str(),c))
+
+        }
+        
+        print!("\x1B[H\r\n");
+        self::DialoguePrinter::cursor_default_pos();
+    }
 
     /*  STATIC FUNCTIONS  */
 
@@ -133,9 +213,7 @@ impl DialoguePrinter {
         )
     }
 
-
-    pub fn print_main_title()
-    {
+    pub fn print_main_title(){
         println!("\t -----------------");
         println!("\t|  {}  |",Style::new().bold().paint("GAME SELECTOR"));
         println!("\t -----------------");
@@ -149,13 +227,52 @@ impl DialoguePrinter {
     }
     
     pub fn clear_screen(){
-        println!("\x1B[2J\x1B[1;1H");
+        println!("\x1B[0m\x1B[2J\x1B[1;1H");
     }
 
 
 
 /*  PRIVATE FUNCTIONS */
 
+    fn gray_line(width : u16) -> String{
+        let mut s = format!("\x1B[48;2;{};{};{}m",40,40,40);
+        for i in 0..width {
+            s.push(' ');
+        }
+        s
+    }
+
+    fn menu_line(width : u16, text : &str, style : &str) -> String {
+
+        let mut s = format!("\x1B[48;2;{};{};{}m",40,40,40);
+        for i in 0..width {
+            s.push(' ');
+        }
+                    // toSpawn tab setBold 
+        s.push_str("\r\t"); 
+        s.push_str(style);
+        s.push_str(text);
+        s.push_str("\x1B[0m"); 
+        s
+    }
+
+    fn horizontal_line(width : u16, line_width : u16) -> String {
+
+        let mut s = format!("\x1B[48;2;{};{};{}m",40,40,40);
+        for i in 0..width {
+            s.push(' ');
+        }
+        s.push_str("\r\t");
+        for i in 0..line_width {
+            s.push('_');
+        }
+        s.push_str("\x1B[0m");
+        s
+    }
+
+    fn cursor_default_pos(){
+        print!("\x1B[5000;5000H");
+    }
 
     fn char_talk(&mut self, line : &str, ch : &GameCharacterData) {
         if self.prev_char != ch.short_name {
@@ -188,6 +305,7 @@ impl DialoguePrinter {
             Err(e) => DialoguePrinter::print_error(e)
         }*/
     }
+
 }
 
 

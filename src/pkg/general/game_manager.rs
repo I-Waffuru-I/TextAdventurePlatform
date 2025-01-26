@@ -2,28 +2,44 @@ use crate::pkg::{
     input::{command_executer, command_parser, input_file_reader::InputFileReader}, 
     output::display_printer::DialoguePrinter as dp,
 };
-use std::{thread, time::Duration};
-use super::{current_game_state::{CurrentGameState, CurrentMenuState}, lines::Line, store_file};
-use ansi_term::Style;
+use super::{
+    input_manager::{ self as cm, KeyInteraction as ki }, 
+    lines::Line,
+    states::{
+        CurrentGameState as CGS,
+        CurrentMenuState as CMS,
+        MenuCursorState as MCS
+    },
+     store_file
+};
 use console::Term;
 
 pub struct GameManager {
     file_reader : InputFileReader,
-    current_state : CurrentGameState,
+    current_state : CGS,
     dialogue_printer : dp,
     term : Term,
     selected_game_title : String,
+    is_size_setup : bool,
+    menu_state : CMS,
+    cursor_state : MCS,
+    menu_ops : Vec<String>
+
 }
 
 
 impl GameManager {
+
     pub fn new() -> GameManager{
-        
         let file_reader = InputFileReader::new();
-        let current_state : CurrentGameState = CurrentGameState::MenuOpen(CurrentMenuState::App);
+        let current_state  = CGS::MenuOpen;
         let dialogue_printer = dp::new();
         let term =  Term::buffered_stdout();
         let selected_game_title = String::from("");
+        let is_size_setup = false;
+        let menu_state = CMS::App(false);
+        let cursor_state = MCS{ selected : 0, total : 0};
+        let menu_ops : Vec<String> = vec![];
         
         GameManager {
             file_reader, 
@@ -31,101 +47,149 @@ impl GameManager {
             dialogue_printer,
             term,
             selected_game_title,
+            is_size_setup,
+            menu_state,
+            cursor_state,
+            menu_ops
         }
     }
+
     // Main event loop
     pub fn run(&mut self) {
         'event_loop : loop {
             match self.current_state {
-                CurrentGameState::GameIsStopping => {
+                CGS::AppIsStopping => {
                     self.stop_program();
                     break 'event_loop;
                 }
-                CurrentGameState::GameStarting => {
+                CGS::GameStarting => {
                     self.start_game();
                 }
-                CurrentGameState::GameRunning => {
+                CGS::GameRunning => {
                     self.continue_playing_game();
                 }
-                CurrentGameState::AwaitingKeyPress => {
-                    self.await_key_press();    
+                CGS::MenuOpen => {
+                    self.open_menu();
                 }
-                CurrentGameState::MenuOpen(s) => {
-                    self.open_menu(s);
-                }
-                CurrentGameState::StoryIsDone => {
-                    self.await_key_press();
-                    self.open_menu(CurrentMenuState::App);
+                CGS::StoryIsDone => {
+                    self.close_game_to_menu();
                 }
             }
         }
     }
 
-    fn open_menu(&mut self, current_menu_state : CurrentMenuState){
+    fn open_menu(&mut self){
 
-        self.dialogue_printer.implement_size(self.term.size());
-        dp::clear_screen();
-
-        match current_menu_state {
-            CurrentMenuState::App => {},
-            CurrentMenuState::Load => {},
-            CurrentMenuState::New => {}
+        if !self.is_size_setup {
+            dp::clear_screen();
+            self.dialogue_printer.implement_size(self.term.size());
+            self.dialogue_printer.print_menu_img();
+            self.is_size_setup = true;
         }
 
-
-
-        let mut g_count = 0;
-        let mut g_current_selected = 0;
-
-        dp::print_main_title();
-        match store_file::present_game_titles() {
-            Ok(f_list) => {
-                for f in &f_list {
-                    println!(
-                        "\t{}",
-                        f
-                    );
-                    g_count += 1;
+        match self.menu_state {
+            CMS::App(t) => { 
+                if !t {
+                    self.menu_state = CMS::App(true);
+                    self.menu_ops = vec![String::from("New Game"), String::from("LoadGame"),String::from("Credits")];
+                    self.cursor_state.selected = 0;
+                    self.cursor_state.total = 2;
                 }
-                g_count -= 1;
-                println!();
-                println!("{}", Style::new().italic().paint("Use K / J to navigate, Space / Enter to select, X to quit."));
-                println!("Selected {}",&f_list[g_current_selected].clone());
-                'await_arrow_press : loop {
 
-                    if let Ok(char) = self.term.read_char() {
-                        match char {
-                            ' ' | '\n' => {
-                                self.selected_game_title = format!("data/{}",f_list[g_current_selected].clone()); 
-                                self.current_state = CurrentGameState::GameStarting;
-                                break 'await_arrow_press
-                            },
-                            'x' => {
-                                self.current_state = CurrentGameState::GameIsStopping;
-                                break 'await_arrow_press;
-                            },
-                            'k' => {
-                                if g_current_selected > 0 {
-                                    g_current_selected-=1;
-                                    dp::replace_line(format!("Selected {}",f_list[g_current_selected].clone()).as_str());
-                                } 
-                            },
-                            'j' => {
-                                if g_current_selected <= g_count -1 {
-                                    g_current_selected+=1;
-                                    dp::replace_line(format!("Selected {}",f_list[g_current_selected].clone()).as_str());
-                                }
-                            }
-                            _ => {
-                                dp::replace_line("Press a valid key.");
-                            },
+                self.dialogue_printer.print_menu_screen("Load Game",self.cursor_state.selected, &self.menu_ops);
+                if self.get_menu_input() {
+                    match self.cursor_state.selected {
+                        0 => self.menu_state = CMS::New(false),
+                        1 => self.menu_state = CMS::Load(false),
+                        _ => {
+                            // credits or whatever
                         }
                     }
                 }
-            },
-            Err(e) => {
-                dp::print_error(e);
-            },
+            }
+            CMS::Load(t) => {
+                if !t {
+                    self.menu_ops.clear();
+                    self.menu_ops.push("\x1B[3mBack\x1B[23m".to_string());
+                    let gl = store_file::present_game_titles().unwrap_or_else(|o| vec![]);
+                    for game in gl {
+                        self.menu_ops.push(game);
+                    }
+                    self.cursor_state.selected = 0; 
+                    self.cursor_state.total = self.menu_ops.len() as u8 -1;
+                    self.menu_state = CMS::Load(true);
+                }
+                self.dialogue_printer.print_menu_screen("Load Game",self.cursor_state.selected, &self.menu_ops);
+                if self.get_menu_input() {
+                    match self.cursor_state.selected {
+                        0 => {
+                            // back
+                            self.menu_state = CMS::App(false);
+                        }
+                        x => {
+                            // open game at x-th index in opt (save to game manager?)
+                        }
+                    }
+                }
+            }
+            CMS::New(t) => {
+                if !t {
+                    self.menu_ops.clear();
+                    self.menu_ops.push("\x1B[3mBack\x1B[23m".to_string());
+                    let gl = store_file::present_game_titles().unwrap_or_else(|o| vec![]);
+                    for game in gl {
+                        self.menu_ops.push(game);
+                    }
+                    self.cursor_state.selected = 0; 
+                    self.cursor_state.total = self.menu_ops.len() as u8 -1;
+                    self.menu_state = CMS::New(true);
+                }
+                self.dialogue_printer.print_menu_screen("New Game",self.cursor_state.selected, &self.menu_ops);
+                if self.get_menu_input() {
+                    match self.cursor_state.selected {
+                        0 => {
+                            // back
+                            self.menu_state = CMS::App(false);
+                        }
+                        x => {
+                            // open game at x-th index in opt (save to game manager?)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn get_menu_input(&mut self) -> bool{
+        match cm::await_key_press(&self.term) {
+            ki::Up => {
+                if self.cursor_state.selected == 0 {
+                    self.cursor_state.selected = self.cursor_state.total;
+                } else {
+                    self.cursor_state.selected -= 1;
+                }
+                return false
+            }
+            ki::Down => {
+                if self.cursor_state.selected == self.cursor_state.total {
+                    self.cursor_state.selected = 0;
+                } else {
+                    self.cursor_state.selected += 1;
+                }
+                return false
+            }
+            ki::Next => {
+                return false
+            } 
+            ki::Select => {
+                return true
+            }
+            ki::Close => { 
+                if self.menu_state == CMS::App(true) || self.menu_state == CMS::App(false)
+                    {self.current_state = CGS::AppIsStopping }
+                else 
+                    { self.menu_state = CMS::App(false) }
+                return false
+            }
         }
     }
 
@@ -141,20 +205,17 @@ impl GameManager {
                         dp::print_error(e);
                    },
                 }
-                self.dialogue_printer.implement_size(self.term.size());
                 self.dialogue_printer.implement_chars(game.characters);
-                self.current_state = CurrentGameState::GameRunning;
+                self.current_state = CGS::GameRunning;
             }
             Err(error) => {
                 dp::print_error(format!("{:?}",error));
-                self.current_state = CurrentGameState::GameIsStopping;
+                self.current_state = CGS::AppIsStopping;
             }
         }
     }
 
-
     fn continue_playing_game(&mut self){
-
         let line  = self.file_reader.read_next_line(); 
         match line {
             Ok(l) => {
@@ -162,38 +223,15 @@ impl GameManager {
             },
             Err(e) => {
                 dp::print_info(e);
-                self.current_state = CurrentGameState::StoryIsDone;
-            }
-        }
-
-    }
-
-    fn await_key_press(&mut self){
-        'await_press : loop {
-            if let Ok(char) = self.term.read_char(){
-                match char {
-                    'x' => {
-                        thread::sleep(Duration::from_millis(100));
-                        self.current_state = CurrentGameState::MenuOpen(CurrentMenuState::App);
-                        break 'await_press;
-                    },
-                    ' ' | '\n' => {
-                        thread::sleep(Duration::from_millis(100));
-                        self.current_state = CurrentGameState::GameRunning;
-                        break 'await_press;
-                    }
-                    _ => println!("{}", Style::new().italic().paint("Press Enter / Space bar to continue . . ."))
-                }
+                self.current_state = CGS::StoryIsDone;
             }
         }
     }
 
     fn handle_line(&mut self, line : Line) {
-
         match line {
             Line::Text(t) => {
                 self.dialogue_printer.print_dialogue_line(&t);
-                self.current_state = CurrentGameState::AwaitingKeyPress
             }
 
             Line::Cmd(cmd) => {
@@ -212,12 +250,27 @@ impl GameManager {
                     }
                     Err(s) => {
                         println!("{}",s);
-                        self.current_state = CurrentGameState::GameIsStopping;
+                        self.current_state = CGS::AppIsStopping;
                     }
                 }
             }
         };
 
+    }
+
+    fn close_game_to_menu(&mut self) {
+
+        'input : loop {
+            match cm::await_key_press(&self.term) {
+                ki::Up => {}
+                ki::Down => {}
+                ki::Next => { break 'input }
+                ki::Select => { break 'input }
+                ki::Close => { break 'input }
+            }
+        }
+        self.current_state = CGS::MenuOpen;      
+        self.menu_state = CMS::App(false)
     }
 
     fn stop_program(&mut self) {
