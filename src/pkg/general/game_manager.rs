@@ -19,11 +19,10 @@ pub struct GameManager {
     current_state : CGS,
     dialogue_printer : dp,
     term : Term,
-    selected_game_title : String,
-    is_size_setup : bool,
     menu_state : CMS,
     cursor_state : MCS,
-    menu_ops : Vec<String>
+    menu_ops : Vec<String>,
+    is_in_menu : bool
 
 }
 
@@ -35,35 +34,33 @@ impl GameManager {
         let current_state  = CGS::MenuOpen;
         let dialogue_printer = dp::new();
         let term =  Term::buffered_stdout();
-        let selected_game_title = String::from("");
-        let is_size_setup = false;
         let menu_state = CMS::App(false);
         let cursor_state = MCS{ selected : 0, total : 0};
         let menu_ops : Vec<String> = vec![];
+        let is_in_menu = false;
         
         GameManager {
             file_reader, 
             current_state, 
             dialogue_printer,
             term,
-            selected_game_title,
-            is_size_setup,
             menu_state,
             cursor_state,
-            menu_ops
+            menu_ops,
+            is_in_menu
         }
     }
 
     // Main event loop
     pub fn run(&mut self) {
         'event_loop : loop {
-            match self.current_state {
+            match &self.current_state {
                 CGS::AppIsStopping => {
                     self.stop_program();
                     break 'event_loop;
                 }
-                CGS::GameStarting => {
-                    self.start_game();
+                CGS::GameStarting(ref t) => {
+                    self.start_game(t.clone());
                 }
                 CGS::GameRunning => {
                     self.continue_playing_game();
@@ -79,17 +76,10 @@ impl GameManager {
     }
 
     fn open_menu(&mut self){
-
-        if !self.is_size_setup {
-            dp::clear_screen();
-            self.dialogue_printer.implement_size(self.term.size());
-            self.dialogue_printer.print_menu_img();
-            self.is_size_setup = true;
-        }
-
         match self.menu_state {
             CMS::App(t) => { 
                 if !t {
+                    self.setup_menu();
                     self.menu_state = CMS::App(true);
                     self.menu_ops = vec![String::from("New Game"), String::from("LoadGame"),String::from("Credits")];
                     self.cursor_state.selected = 0;
@@ -109,6 +99,7 @@ impl GameManager {
             }
             CMS::Load(t) => {
                 if !t {
+                    self.setup_menu();
                     self.menu_ops.clear();
                     self.menu_ops.push("\x1B[3mBack\x1B[23m".to_string());
                     let gl = store_file::present_game_titles().unwrap_or_else(|o| vec![]);
@@ -122,18 +113,17 @@ impl GameManager {
                 self.dialogue_printer.print_menu_screen("Load Game",self.cursor_state.selected, &self.menu_ops);
                 if self.get_menu_input() {
                     match self.cursor_state.selected {
-                        0 => {
-                            // back
-                            self.menu_state = CMS::App(false);
-                        }
+                        0 => self.menu_state = CMS::App(false), // going back to main menu
                         x => {
                             // open game at x-th index in opt (save to game manager?)
+                            // self.is_in_menu = false;
                         }
                     }
                 }
             }
             CMS::New(t) => {
                 if !t {
+                    self.setup_menu();
                     self.menu_ops.clear();
                     self.menu_ops.push("\x1B[3mBack\x1B[23m".to_string());
                     let gl = store_file::present_game_titles().unwrap_or_else(|o| vec![]);
@@ -153,6 +143,11 @@ impl GameManager {
                         }
                         x => {
                             // open game at x-th index in opt (save to game manager?)
+                            let title_opt = self.menu_ops.iter().nth(x as usize);
+                            match title_opt {
+                                Some(title) => self.current_state = CGS::GameStarting(title.clone()),
+                                None => {}
+                            }
                         }
                     }
                 }
@@ -192,11 +187,19 @@ impl GameManager {
             }
         }
     }
+    fn setup_menu(&mut self){
+        if !self.is_in_menu{
+            dp::clear_screen();
+            self.dialogue_printer.implement_size(self.term.size());
+            self.dialogue_printer.print_menu_img();
+            self.is_in_menu = true;
+        }
+    }
 
-
-    fn start_game(&mut self) {
+    fn start_game(&mut self, game_title : String) {
         dp::clear_screen();
-        match store_file::start_game(&self.selected_game_title) {
+        self.is_in_menu = false;
+        match store_file::start_game(&game_title) {
             Ok(game) => {
 
                 match self.file_reader.setup(&game.main_file_path){
@@ -210,7 +213,8 @@ impl GameManager {
             }
             Err(error) => {
                 dp::print_error(format!("{:?}",error));
-                self.current_state = CGS::AppIsStopping;
+                self.current_state = CGS::MenuOpen;
+                self.menu_state = CMS::App(false);
             }
         }
     }

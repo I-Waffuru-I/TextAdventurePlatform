@@ -30,7 +30,8 @@ pub fn present_game_titles() -> Result<Vec<String>,String>{
 
 
 pub fn start_game(game_info_file: &str) -> Result<MainGameFile,Box<dyn std::error::Error>> {
-    let contents = fs::read_to_string(game_info_file).unwrap();
+    let s = format!("data/{}", game_info_file);
+    let contents = fs::read_to_string(s).unwrap();
     Ok(toml::from_str(&contents)?)
 /*
     println!("--------");

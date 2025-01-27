@@ -1,7 +1,7 @@
-#[derive(PartialEq,Clone, Copy)]
+#[derive(PartialEq,Clone)]
 pub enum CurrentGameState {
     MenuOpen,
-    GameStarting,
+    GameStarting(String),
     GameRunning,
     AppIsStopping,
     StoryIsDone,
