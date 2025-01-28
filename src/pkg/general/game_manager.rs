@@ -1,7 +1,4 @@
-use crate::pkg::{
-    input::{command_executer, command_parser, input_file_reader::InputFileReader}, 
-    output::display_printer::DialoguePrinter as dp,
-};
+use crate::pkg::output::display_printer::DialoguePrinter as dp;
 use super::{
     input_manager::{ self as cm, KeyInteraction as ki }, 
     lines::Line,
@@ -10,13 +7,13 @@ use super::{
         CurrentMenuState as CMS,
         MenuCursorState as MCS
     },
-     store_file
+     store_file, story_manager::StoryManager
 };
 use console::Term;
 
 pub struct GameManager {
-    file_reader : InputFileReader,
     current_state : CGS,
+    story_man : StoryManager,
     dialogue_printer : dp,
     term : Term,
     menu_state : CMS,
@@ -30,7 +27,6 @@ pub struct GameManager {
 impl GameManager {
 
     pub fn new() -> GameManager{
-        let file_reader = InputFileReader::new();
         let current_state  = CGS::MenuOpen;
         let dialogue_printer = dp::new();
         let term =  Term::buffered_stdout();
@@ -38,16 +34,17 @@ impl GameManager {
         let cursor_state = MCS{ selected : 0, total : 0};
         let menu_ops : Vec<String> = vec![];
         let is_in_menu = false;
+        let story_man = StoryManager::new();
         
         GameManager {
-            file_reader, 
             current_state, 
             dialogue_printer,
             term,
             menu_state,
             cursor_state,
             menu_ops,
-            is_in_menu
+            is_in_menu,
+            story_man
         }
     }
 
@@ -197,70 +194,39 @@ impl GameManager {
     }
 
     fn start_game(&mut self, game_title : String) {
-        dp::clear_screen();
-        self.is_in_menu = false;
-        match store_file::start_game(&game_title) {
-            Ok(game) => {
-
-                match self.file_reader.setup(&game.main_file_path){
-                   Ok(_) => {},
-                   Err(e) => {
-                        dp::print_error(e);
-                   },
-                }
-                self.dialogue_printer.implement_chars(game.characters);
+        match self.story_man.start_game(game_title) {
+            Ok(_) => {
                 self.current_state = CGS::GameRunning;
+                dp::clear_screen();
+                self.is_in_menu = false;
+                //self.dialogue_printer.print_game_screen();
             }
-            Err(error) => {
-                dp::print_error(format!("{:?}",error));
+            Err(e) => {
+                dp::print_error(e);
                 self.current_state = CGS::MenuOpen;
                 self.menu_state = CMS::App(false);
             }
         }
+    
+    
+    
     }
+
 
     fn continue_playing_game(&mut self){
-        let line  = self.file_reader.read_next_line(); 
-        match line {
-            Ok(l) => {
-                self.handle_line(l);                 
-            },
-            Err(e) => {
-                dp::print_info(e);
-                self.current_state = CGS::StoryIsDone;
-            }
-        }
+        self.story_man.continue_game();
+        // let line  = self.file_reader.read_next_line(); 
+        // match line {
+        //     Ok(l) => {
+        //         self.handle_line(l);                 
+        //     },
+        //     Err(e) => {
+        //         dp::print_info(e);
+        //         self.current_state = CGS::StoryIsDone;
+        //     }
+        // }
     }
 
-    fn handle_line(&mut self, line : Line) {
-        match line {
-            Line::Text(t) => {
-                self.dialogue_printer.print_dialogue_line(&t);
-            }
-
-            Line::Cmd(cmd) => {
-
-                match command_parser::try_parse_to_cmd(&cmd.command) {
-                    Ok(c) => {
-                        match command_executer::execute(c,&self.term) {
-                            Ok(i) => {
-                               self.file_reader.set_current_line_to(i); 
-                               self.dialogue_printer.cmd_executed();
-                            } 
-                            Err(e) => {
-                                dp::print_error(e);
-                            }
-                        }
-                    }
-                    Err(s) => {
-                        println!("{}",s);
-                        self.current_state = CGS::AppIsStopping;
-                    }
-                }
-            }
-        };
-
-    }
 
     fn close_game_to_menu(&mut self) {
 
